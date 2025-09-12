@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; padding: 2rem; }
+        h1 { color: #333; }
+        button { padding: 0.75rem; font-size: 1rem; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #c82333; }
+    </style>
+</head>
+<body>
+    <h1>Welcome to the Dashboard!</h1>
+    <button onclick="clerk.signOut()">Sign Out</button>
+    <script
+        async
+        crossorigin="anonymous"
+        data-clerk-publishable-key="pk_test_bGVnYWwtbWVlcmthdC04LmNsZXJrLmFjY291bnRzLmRldiQ"
+        src="https://legal-meerkat-8.clerk.accounts.dev/npm/@clerk/clerk-js@5/dist/clerk.browser.js"
+        type="text/javascript">
+    </script>
+    <script>
+        const clerk = new Clerk('pk_test_bGVnYWwtbWVlcmthdC04LmNsZXJrLmFjY291bnRzLmRldiQ');
+        clerk.load().then(() => {
+            if (!clerk.session) {
+                window.location.href = '/index.html';
+            }
+        });
+    </script>
+</body>
+</html>
