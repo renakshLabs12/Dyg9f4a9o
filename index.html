@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser with Playwright</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .browser-window {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .browser-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 16px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .browser-toolbar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #f9f9f9;
+            border-bottom: 1px solid #e0e0e0;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 8px 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .url-input {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: border-color 0.2s;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .browser-content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background: #fff;
+        }
+
+        .screenshot-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+        }
+
+        .screenshot-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .loading-spinner {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+
+        .loading-spinner.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: none;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .controls-section {
+            background: #f0f0f0;
+            padding: 12px 16px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .controls-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .controls-input {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+            min-width: 150px;
+        }
+
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #667eea;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="browser-window">
+        <div class="browser-header">
+            🤖 Playwright Browser Automation
+        </div>
+        
+        <div class="error" id="errorBox"></div>
+        
+        <div class="info-box">
+            💡 Powered by Playwright - Automated browser navigation with screenshots
+        </div>
+
+        <div class="browser-toolbar">
+            <button id="backBtn">← Back</button>
+            <button id="forwardBtn">Forward →</button>
+            <button id="refreshBtn">⟳ Refresh</button>
+            <input 
+                type="text" 
+                class="url-input" 
+                id="urlInput" 
+                placeholder="Enter URL (e.g., example.com or https://google.com)"
+                value="https://example.com"
+            />
+            <button id="goBtn">Navigate</button>
+        </div>
+
+        <div class="controls-section">
+            <span class="controls-label">Playwright Actions:</span>
+            <input 
+                type="text" 
+                class="controls-input" 
+                id="selectorInput" 
+                placeholder="CSS Selector (e.g., button, #id, .class)"
+            />
+            <button id="clickBtn">Click Element</button>
+            <input 
+                type="text" 
+                class="controls-input" 
+                id="typeInput" 
+                placeholder="Text to type"
+            />
+            <button id="typeBtn">Type Text</button>
+        </div>
+
+        <div class="browser-content">
+            <div class="loading-spinner" id="loading">
+                <div class="spinner"></div>
+            </div>
+            <div class="screenshot-container">
+                <img id="screenshot" class="screenshot-img" style="display:none;" />
+                <div id="noScreenshot" style="color:#999; text-align:center;">
+                    📸 Screenshots will appear here
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlInput = document.getElementById('urlInput');
+        const goBtn = document.getElementById('goBtn');
+        const backBtn = document.getElementById('backBtn');
+        const forwardBtn = document.getElementById('forwardBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const clickBtn = document.getElementById('clickBtn');
+        const typeBtn = document.getElementById('typeBtn');
+        const selectorInput = document.getElementById('selectorInput');
+        const typeInput = document.getElementById('typeInput');
+        const screenshot = document.getElementById('screenshot');
+        const noScreenshot = document.getElementById('noScreenshot');
+        const loading = document.getElementById('loading');
+        const errorBox = document.getElementById('errorBox');
+
+        const API_BASE = 'http://localhost:3000/api';
+
+        function showError(message) {
+            errorBox.textContent = '❌ ' + message;
+            errorBox.classList.add('active');
+            setTimeout(() => errorBox.classList.remove('active'), 5000);
+        }
+
+        function showLoading() {
+            loading.classList.add('active');
+        }
+
+        function hideLoading() {
+            loading.classList.remove('active');
+        }
+
+        function displayScreenshot(base64) {
+            if (base64) {
+                screenshot.src = 'data:image/png;base64,' + base64;
+                screenshot.style.display = 'block';
+                noScreenshot.style.display = 'none';
+            }
+        }
+
+        async function navigate() {
+            try {
+                showLoading();
+                const url = urlInput.value.trim();
+                
+                if (!url) {
+                    showError('Please enter a URL');
+                    hideLoading();
+                    return;
+                }
+
+                const response = await fetch(`${API_BASE}/navigate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayScreenshot(data.screenshot);
+                    urlInput.value = data.url;
+                } else {
+                    showError(data.error || 'Navigation failed');
+                }
+            } catch (error) {
+                showError('Connection error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function clickElement() {
+            try {
+                const selector = selectorInput.value.trim();
+                
+                if (!selector) {
+                    showError('Please enter a CSS selector');
+                    return;
+                }
+
+                showLoading();
+                const response = await fetch(`${API_BASE}/click`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selector })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayScreenshot(data.screenshot);
+                } else {
+                    showError(data.error || 'Click failed');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function typeText() {
+            try {
+                const selector = selectorInput.value.trim();
+                const text = typeInput.value;
+                
+                if (!selector) {
+                    showError('Please enter a CSS selector');
+                    return;
+                }
+
+                showLoading();
+                const response = await fetch(`${API_BASE}/type`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selector, text })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayScreenshot(data.screenshot);
+                } else {
+                    showError(data.error || 'Type failed');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function goBack() {
+            try {
+                showLoading();
+                const response = await fetch(`${API_BASE}/back`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayScreenshot(data.screenshot);
+                } else {
+                    showError(data.error || 'Back navigation failed');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function goForward() {
+            try {
+                showLoading();
+                const response = await fetch(`${API_BASE}/forward`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayScreenshot(data.screenshot);
+                } else {
+                    showError(data.error || 'Forward navigation failed');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        async function refresh() {
+            try {
+                showLoading();
+                const response = await fetch(`${API_BASE}/refresh`, { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayScreenshot(data.screenshot);
+                } else {
+                    showError(data.error || 'Refresh failed');
+                }
+            } catch (error) {
+                showError('Error: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // Event listeners
+        goBtn.addEventListener('click', navigate);
+        urlInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') navigate();
+        });
+
+        backBtn.addEventListener('click', goBack);
+        forwardBtn.addEventListener('click', goForward);
+        refreshBtn.addEventListener('click', refresh);
+        clickBtn.addEventListener('click', clickElement);
+        typeBtn.addEventListener('click', typeText);
+
+        selectorInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') clickElement();
+        });
+
+        typeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') typeText();
+        });
+
+        // Initial load
+        window.addEventListener('load', () => {
+            console.log('🚀 Browser automation UI loaded');
+            console.log('Make sure Node.js server is running: npm start');
+        });
+    </script>
+</body>
+</html>
